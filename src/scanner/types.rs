@@ -69,6 +69,14 @@ impl ScanResult {
             rtt: None,
         }
     }
+    pub fn new_open_filterd(port: u16) -> Self {
+        Self {
+            port,
+            state: PortState::Filtered,
+            service: Service::unknown(),
+            rtt: None,
+        }
+    }
 }
 
 impl Service {

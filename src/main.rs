@@ -1,15 +1,23 @@
-mod cli;
-mod llm;
-mod output;
+// // src/main.rs
 mod scanner;
-mod utils;
-// mod config;
+// ... other mods
 
-// use llm::Explainer;
-// use output::OutputFormat;
-// use scanner::Scanner;
+use scanner::Scanner;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<T> {
-    let args = Args::parse();
+async fn main() -> anyhow::Result<()> {
+    let target = "192.168.1.1".parse()?;
+    let ports = vec![80, 443, 22];
+
+    let scanner = Scanner::new(target, ports);
+    let results = scanner.run().await?;
+
+    for result in results {
+        println!(
+            "{}/tcp {:10} {}",
+            result.port, result.state, result.service.name
+        );
+    }
+
+    Ok(())
 }
