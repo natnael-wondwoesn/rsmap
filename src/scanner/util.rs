@@ -1,6 +1,7 @@
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::{Ipv4Flags, MutableIpv4Packet};
 use pnet::packet::tcp::{MutableTcpPacket, TcpFlags};
+use pnet::packet::Packet;
 use pnet::util;
 use std::net::Ipv4Addr;
 
@@ -10,33 +11,41 @@ pub fn build_syn_packet(
     src_port: u16,
     dst_port: u16,
 ) -> Vec<u8> {
-    let mut tcp_buffer = [0u8; 40];
-    let mut tcp_header = MutableTcpPacket::new(&mut tcp_buffer[20..]).unwrap();
+    const IP_HEADER_LEN: usize = 20;
+    const TCP_HEADER_LEN: usize = 20;
+    let mut buffer = vec![0u8; IP_HEADER_LEN + TCP_HEADER_LEN];
 
-    tcp_header.set_source(src_port);
-    tcp_header.set_destination(dst_port);
-    tcp_header.set_sequence(12345);
-    tcp_header.set_acknowledgement(0);
-    tcp_header.set_data_offset(5); // 20 bytes
-    tcp_header.set_flags(TcpFlags::SYN);
-    tcp_header.set_window(64240);
-    tcp_header.set_urgent_ptr(0);
-    let checksum = pnet::packet::tcp::ipv4_checksum(&tcp_header.to_immutable(), &src_ip, &dst_ip);
-    tcp_header.set_checksum(checksum);
+    // ----- TCP Header -----
+    {
+        let mut tcp = MutableTcpPacket::new(&mut buffer[IP_HEADER_LEN..]).unwrap();
+        tcp.set_source(src_port);
+        tcp.set_destination(dst_port);
+        tcp.set_sequence(0x1234_5678);
+        tcp.set_acknowledgement(0);
+        tcp.set_data_offset(5); // 20 bytes
+        tcp.set_flags(TcpFlags::SYN);
+        tcp.set_window(64_240);
+        tcp.set_urgent_ptr(0);
 
-    let mut ip_header = MutableIpv4Packet::new(&mut tcp_buffer[..20]).unwrap();
+        let checksum = pnet::packet::tcp::ipv4_checksum(&tcp.to_immutable(), &src_ip, &dst_ip);
+        tcp.set_checksum(checksum);
+    }
 
-    ip_header.set_version(4);
-    ip_header.set_header_length(5);
-    ip_header.set_total_length(40);
-    ip_header.set_ttl(64);
-    ip_header.set_next_level_protocol(IpNextHeaderProtocols::Tcp);
-    ip_header.set_source(src_ip);
-    ip_header.set_destination(dst_ip);
-    ip_header.set_identification(54321);
-    ip_header.set_flags(Ipv4Flags::DontFragment);
-    // let ip_checksum = util::checksum(&ip_header.packet(), 5);
-    // ip_header.set_checksum(ip_checksum);
+    // ----- IPv4 Header -----
+    {
+        let mut ip = MutableIpv4Packet::new(&mut buffer[..IP_HEADER_LEN]).unwrap();
+        ip.set_version(4);
+        ip.set_header_length(5);
+        ip.set_total_length((IP_HEADER_LEN + TCP_HEADER_LEN) as u16);
+        ip.set_ttl(64);
+        ip.set_next_level_protocol(IpNextHeaderProtocols::Tcp);
+        ip.set_source(src_ip);
+        ip.set_destination(dst_ip);
+        ip.set_identification(0x1337);
+        ip.set_flags(Ipv4Flags::DontFragment);
+        let checksum = util::checksum(ip.packet(), 5);
+        ip.set_checksum(checksum);
+    }
 
-    tcp_buffer.to_vec()
+    buffer
 }

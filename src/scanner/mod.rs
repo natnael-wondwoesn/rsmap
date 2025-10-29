@@ -3,7 +3,7 @@ pub mod syn;
 pub mod types;
 pub mod util;
 
-pub use types::{PortState, ScanResult, Service};
+pub use types::ScanResult;
 
 use std::net::IpAddr;
 
