@@ -1,5 +1,6 @@
 // // src/main.rs
 mod scanner;
+mod cli;
 // ... other mods
 
 use scanner::Scanner;
